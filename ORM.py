@@ -1,97 +1,133 @@
 
-from utils.Adapterdb import PostgresConnector
+from utils.Adapterdb import init_connector_db as _cursor
+import fields
+import json
 
 LOG_ACCESS_COLUMNS = ['create_uid', 'create_date', 'write_uid', 'write_date']
 MAGIC_COLUMNS = ['id'] + LOG_ACCESS_COLUMNS
+ENVIRONMENT = {}
+FIELD_ATTRS = ["index", "required", "readonly", "size", "compute"]
+
+class Meta(type):
+
+    def __init__(self, name, bases, attrs):
+        if not self._register:
+            self._register = True
+            super(Meta, self).__init__(name, bases, attrs)
+            return
+
+    def __call__(cls, *args, **kwargs):
+        ENVIRONMENT.update({cls._name: cls})
+        return super(Meta, cls).__call__(*args, **kwargs)
 
 
-class Fields(object):
-
-    def Text(self, name, description, required=False):
-        column = [name, "TEXT"] + self.not_null(required)
-        return column
-
-    def Float(self, name, description, size=4, required=False):
-        float_type = "float4"
-        if size > 4:
-            float_type = "float8"
-        return [name, float_type] + self.not_null(required))
-
-    def Date(self, name, description, required=False):
-        type_value = "date"
-        return [name, type_value] + self.not_null(required))
-
-    def Datetime(self, name, description, required=False):
-        type_value = "datetime"
-        return [name, type_value] + self.not_null(required))
-
-    def Char(self, name, description, size=100, required=False):
-        type_value = "char({0})".format(size)
-        return [name, type_value] + self.not_null(required))
-
-    def Boolean(self, name, description, required=False):
-        type_value = "boolean"
-        return [name, type_value] + self.not_null(required))
-
-    def Serial(self, name, description, required=False):
-        type_value = "serial"
-        return [name, type_value] + self.not_null(required))
-        
-    def Money(self, name, description, required=False):
-        type_value = "money"
-        return [name, type_value] + self.not_null(required))
-
-    def Binary(self, name, description, required=False):
-        type_value = "bytea"
-        return [name, type_value] + self.not_null(required))
-
-    def Integer(self, name, description, size=2, required=False):
-        type_value = "int2"
-        if size > 2 and size <=4:
-            type_value = "int4"
-        elif size > 4 and size <= 8:
-            type_value = "int8"
-        else:
-            type_value = "int28"
-        return [name, type_value] + self.not_null(required))
-
-    def not_null(self, required):
-        return ["NOT NULL"] if required else []
-
-class BaseModel(PostgresConnector):
+class BaseModel(object):
+    __metaclass__ = Meta
     _name = "base"
     _description = "description"
+    _register = False
+    _colums = {}
     
     def __init__(self):
-        self._table = self._name
+        self._table = self._name.replace(".", "_")
+        self._cr = _cursor()
+        self.env = ENVIRONMENT
+        self._auto_init()
+        
+    def _cretae_table_fields(self):
+        table = "ir_fields"
+        create = self._table_exist(table=table)
+        if create:
+            return
+        sql = """
+              CREATE TABLE "%s"
+                (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                NAME TEXT NOT NULL,
+                TYPE TEXT NOT NULL,
+                MODEL TEXT NOT NULL,
+                ATTRS TEXT NOT NULL);
+            """
+        self._cr.execute(sql%(table,))
 
-    def _table_exist(self):
-        query = "SELECT relname FROM pg_class WHERE relkind IN ('r','v') AND relname=%s"
-        self._cr.execute(query, (self._table,))
-        return self._cr.rowcount
+    def get_fields_exists(self, name):
+        sql = """select id, name, type, attrs from
+                 ir_fields where name="%s" and model="%s"
+              """%(name, self._table)
+        rows = self._cr.execute(sql)
+        return rows
+        
+    def register_fields(self, name, value, field_attrs):
+        _attrs = {}
+        query = """INSERT INTO ir_fields (name, type, model, attrs)
+                   VALUES ("%s", "%s", "%s", "%s");"""
+        ir_field = self.get_fields_exists(name)
+        for attr in FIELD_ATTRS:
+            if hasattr(field_attrs, attr):
+                _attrs[attr] = getattr(field_attrs, attr)
+        columms = {"name": name, "type": value, "attrs": _attrs.items()}
+        if not ir_field:
+            self._cr.execute(query%(name, value, self._table, _attrs.items()))
+            self.update_columns_model(name, value, _attrs)
+            return True
+        id, field, type, attrs = ir_field[0]
+        columms["name"] = field
+        columms["type"] = type
+        columms["attrs"] = attrs
+        self.update_ir_field(columms, id)
+        attrs = dict(eval(attrs))
+        new_attrs = {}
+        for key in attrs:
+            if _attrs[key] != attrs[key]:
+                new_attrs[key] = _attrs[key]
+        self.update_columns_model(name, value, new_attrs, False)
+
+    def update_ir_field(self, change, id):
+        sql = "update ir_fields set "
+        for key, value in change.items():
+            sql += "%s='%s'\n"%(key, value)
+        sql += "where id=%s;"
+        #~ self._cr.execute(sql)
+
+    def update_columns_model(self, name, type, attrs, add=True):
+        if add:
+            sql = 'ALTER TABLE "%s" ADD COLUMN "%s" "%s" "%s"'
+        
+
+    def _table_exist(self, table=False):
+        table = table or self._table
+        query = "select DISTINCT tbl_name from sqlite_master where TYPE='table' AND  tbl_name='%s'"
+        cursor = self._cr.execute(query%(table,))
+        return cursor
 
     def _create_table(self):
-        self._cr.execute('CREATE TABLE "%s" (id SERIAL NOT NULL, PRIMARY KEY(id))' % (self._table,))
-        self._cr.execute("COMMENT ON TABLE \"%s\" IS %%s" % self._table, (self._description,))
+        self._cr.execute('CREATE TABLE "%s" (ID INTEGER PRIMARY KEY AUTOINCREMENT)' % (self._table,))
 
+    def _auto_init(self):
+        create = self._table_exist()
+        if not create:
+            self._create_table()
+        self._add_fields()
 
-class Poller(PostgresConnector):
+    def _add_fields(self):
+        self._cretae_table_fields()
+        for field, value in self._columns.items():
+            self.register_fields(field, value.column_type, value)
+            
+        #~ for field, value in self._columns.items():
+            #~ sql = 'ALTER TABLE "%s" ADD COLUMN "%s" "%s" "%s"'
+            #~ self._cr.execute(sql %(self._table, field, value.column_type, value.not_null))
 
-    def __init__(self, table):
-        self.table = table
-        self.id = False
+class A(BaseModel):
+    _name = "model.a"
+    _columns = {
+        "user": fields.Char(string="user", required=True, size=20),
+        "user2": fields.Text(string="name", required=True, intex=True),
+        "cedula": fields.Text(string="name", required=True, intex=True),
+    }
 
-    def create(self, vals):
-        return self
+    def pp(self):
+        print self.env
 
-    def update(self, ids, vals):
-        return self
+a = A()
+#~ print a.user
 
-    def deleted(self, ids):
-        return self
-
-    def search(self, domain):
-        return self
-
-    def read(self, ids, fields):
-        return self
