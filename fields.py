@@ -58,6 +58,8 @@ class Field(object):
         'help': None,                   # field tooltip
         'readonly': False,              # whether the field is readonly
         'required': False,              # whether the field is required
+        'unique': False,                # whether the field is required
+        'size': False,                # whether the field is required
     }
 
     def new(self, **kwargs):
@@ -74,9 +76,9 @@ class Field(object):
     def __init__(self, string=Default, **kwargs):
         self._attrs = {}
         kwargs['string'] = string
-        args = {key: val for key, val in kwargs.iteritems() if val is not Default}
-        self.args = args or {}
-        self.set_all_attrs(args)
+        values = {key: val for key, val in kwargs.iteritems() if val is not Default}
+        self.args = values or {}
+        self.set_all_attrs(values)
 
     def convert_to_column(self, value, record):
         if not value:
