@@ -3,15 +3,15 @@ try:
 except ImportError:
     import StringIO
 
-#~ from PIL import Image
-#~ from PIL import ImageEnhance
+from PIL import Image
+from PIL import ImageEnhance
 from random import randrange
 import re
 import base64
 
 
-#~ Image.preinit()
-#~ Image._initialized = 2
+Image.preinit()
+Image._initialized = 2
 
 
 DATE_FORMAT = "%Y-%m-%d"

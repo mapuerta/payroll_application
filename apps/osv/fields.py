@@ -1,6 +1,6 @@
 from datetime import datetime, date
-from misc import DATETIME_FORMAT, DATE_FORMAT, TIME_FORMAT
-from misc import isBase64, encode_image, image_resize_image
+from utils.misc import DATETIME_FORMAT, DATE_FORMAT, TIME_FORMAT
+from utils.misc import isBase64, encode_image, image_resize_image
 DATE_LENGTH = len(date.today().strftime(DATE_FORMAT))
 DATETIME_LENGTH = len(datetime.now().strftime(DATETIME_FORMAT))
 Default = object()
@@ -74,11 +74,14 @@ class Field(object):
             raise AttributeError(name)
 
     def __init__(self, string=Default, **kwargs):
+        default_value = {"int": 0, "real": 0.00, 'char': "NA", "text": "NA"} 
         self._attrs = {}
         kwargs['string'] = string
         values = {key: val for key, val in kwargs.iteritems() if val is not Default}
         self.args = values or {}
         self.set_all_attrs(values)
+        if kwargs.get('required') and not kwargs.get('default'):
+            setattr(self, 'default', default_value[self.column_type[1]])
 
     def convert_to_column(self, value, record):
         if not value:
@@ -166,7 +169,6 @@ class Field(object):
 class _String(Field):
     pass
 
-
 class Char(_String):
 
     _slots = {"size": 6}
@@ -178,13 +180,13 @@ class Char(_String):
 
     @property
     def column_type(self):
-        return 'CHAR(%d)' % self.size
+        return ['CHAR(%d)' % self.size, "char"]
 
 
 class Text(_String):
 
     type = 'text'
-    column_type = 'text'
+    column_type = ('text', 'text')
 
     def __init__(self, string=Default, **kwargs):
         super(Text, self).__init__(string=string, **kwargs)

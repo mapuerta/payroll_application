@@ -1,4 +1,3 @@
-
 from utils.Adapterdb import init_connector_db as _cursor
 import fields
 import json
@@ -126,7 +125,7 @@ class BaseModel(object):
         self._cr.execute(rename)
         create = self._create_table()
         for field, value in self._columns.items():
-            self.register_fields(field, value.column_type, value, add_new=True)
+            self.register_fields(field, value.column_type[0], value, add_new=True)
         values = ', '.join('"%s"' % c for c in self._columns)
         value_insert = "("+values+")"
         self._cr.execute(copy%(self._table, value_insert, values, temp_name))
@@ -150,22 +149,6 @@ class BaseModel(object):
 
     def _add_fields(self):
         for field, value in self._columns.items():
-            self.register_fields(field, value.column_type, value)
+            self.register_fields(field, value.column_type[0], value)
         self.update_columns_model()
-        
-
-class A(BaseModel):
-    _name = "model.a"
-    _columns = {
-        "user": fields.Char(string="User login", readonly=False, required=False, size=12, default="NA"),
-        "cedula": fields.Text(string="CDI", required=False, default="NCI"),
-        "rif": fields.Text(string="CDI", required=True, default="NA"),
-        #~ "name": fields.Char(string="CDI", required=True, size=120, default="NA"),
-    }
-
-    def pp(self):
-        print self.env
-
-a = A()
-#~ print a.user
 

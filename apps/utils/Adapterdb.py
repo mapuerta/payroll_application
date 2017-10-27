@@ -1,5 +1,6 @@
-DATABASE="test_app.db"
 import os, glob, imp
+
+DATABASE = os.environ.get('db_name')
 
 def init_connector_db(adapter="sqlite"):
     modules = {}
