@@ -152,3 +152,6 @@ class BaseModel(object):
             self.register_fields(field, value.column_type[0], value)
         self.update_columns_model()
 
+    def _create(self, vals):
+        pass
+
