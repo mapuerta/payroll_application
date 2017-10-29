@@ -12,7 +12,7 @@ class Form(Gtk.Window):
 	self.model = model
 	grid = Gtk.Grid()
 	grid.set_row_spacing(3)
-	grid.set_column_spacing(20)
+	grid.set_column_spacing(3)
         self.add(grid)
 	self.conten = grid
 	self.rows = 0
@@ -36,6 +36,7 @@ class Form(Gtk.Window):
 
     def new_witget(self, widget):
 	widget.set_paren(self)
+	widget.set_model(self.model)
 	self.witgets.append(widget)
 	self.conten.attach(widget.widget, self.cols, self.rows, 1, 1)
 	self.set_cols(1)
@@ -47,7 +48,7 @@ class Form(Gtk.Window):
     def on_save(self):
 	values = {}
 	for widget in self.witgets:
-	    values.update({widget.field_name: getattr(widget, "get_value")})
+	    values.update({widget.field_name: widget.on_save})
 	self.model.create(value)
 
 

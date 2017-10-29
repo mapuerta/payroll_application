@@ -16,21 +16,19 @@ class DialogCalendar(Gtk.Dialog):
         box.add(self.calendar)
         self.show_all()
 
-    def calendar_date_to_string(self):
+    def date_to_string(self):
 	year, month, day = self.calendar.get_date()
 	date = datetime.datetime(year, month+1, day)
    	return date.strftime("%d-%m-%Y")
    	
     def get_value(self):
-	return self.calendar_date_to_string()
+	return self.date_to_string()
 	
 
 class Date(Widget):
 
     def __init__(self, field):
-	label = field.String
-	super(Date, self).__init__(Gtk.Entry(),
-				   label, spacing=6, readonly=False)
+	super(Date, self).__init__(Gtk.Entry(), field)
 	icon_name = Gtk.STOCK_CDROM
 	self.new_widget.set_icon_from_icon_name(Gtk.EntryIconPosition.PRIMARY,
             icon_name)
@@ -44,4 +42,13 @@ class Date(Widget):
             dialog.destroy()
         elif response == Gtk.ResponseType.CANCEL:
              dialog.destroy()
+
+    def get_value():
+	return self.new_widget.get_text()
+
+    def validate_format(self):
+	try:
+	    datetime.datetime.strptime(self.new_widget.get_text(), '%Y-%m-%d')
+	except ValueError:
+	    raise ValueError("Incorrect data format, should be YYYY-MM-DD")
 
