@@ -6,6 +6,7 @@ class Widget(object):
 
     _slots = {
 	"readonly": False,
+	"required": False,
 	"comodel_name": False,
 	"String": False,
 	"selection": [],
@@ -63,7 +64,7 @@ class Widget(object):
 	self._model = model
 
     def get_value(self):
-	return True
+	return self.new_widget.get_text()
 	
     
 	

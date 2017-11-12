@@ -5,11 +5,11 @@ class Company(ORM.BaseModel):
 
     _name = "company"
     _columns = {
-	"code": fields.Char(string="Codigo postal", size=8, required=True),
-	"reason_social": fields.Text(string="Razon social", required=True),
-	"rif": fields.Text(string="Rif", required=True),
-	"phone": fields.Text(string="Telefono", required=True),
-	"email": fields.Text(string="Correo", required=True),
+	"code": fields.Char(string="Codigo postal", size=8, required=False),
+	"reason_social": fields.Text(string="Razon social", required=False),
+	"rif": fields.Text(string="Rif", required=False),
+	"phone": fields.Text(string="Telefono", required=False),
+	"email": fields.Text(string="Correo", required=False),
 	"logo": fields.Binary(string="Logo"),
     }
 

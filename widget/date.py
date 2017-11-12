@@ -43,9 +43,6 @@ class Date(Widget):
         elif response == Gtk.ResponseType.CANCEL:
              dialog.destroy()
 
-    def get_value():
-	return self.new_widget.get_text()
-
     def validate_format(self):
 	try:
 	    datetime.datetime.strptime(self.new_widget.get_text(), '%Y-%m-%d')

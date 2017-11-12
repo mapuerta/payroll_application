@@ -2,6 +2,7 @@ from utils.Adapterdb import init_connector_db as _cursor
 import fields
 import json
 from base.base import base_tables, property_table
+from datetime import datetime
 
 LOG_ACCESS_COLUMNS = ['create_uid', 'create_date', 'write_uid', 'write_date']
 MAGIC_COLUMNS = ['id'] + LOG_ACCESS_COLUMNS
@@ -26,16 +27,23 @@ class BaseModel(object):
     _name = "base"
     _description = "description"
     _register = False
+    _last_login = False
     _colums = {}
     _constraint = []
     
     def __init__(self):
         self._table = self._name.replace(".", "_")
         self._cr = _cursor()
+        self._uid = self._last_login or 1
+        self.id = self._cr.last_row_id
         self.env = ENVIRONMENT
         self._init_base_tables()
         self._auto_init()
-        
+
+    @property
+    def active_id(self):
+        return self._cr.last_row_id
+
     def _init_base_tables(self):
         for table, sql in base_tables.items():
             exists = self._table_exist(table=table)
@@ -139,7 +147,18 @@ class BaseModel(object):
         return cursor
 
     def _create_table(self):
-        self._cr.execute('CREATE TABLE "%s" (ID INTEGER PRIMARY KEY AUTOINCREMENT)' % (self._table,))
+        columns_propertys = {}
+        for magic in MAGIC_COLUMNS:
+            default_type = "INTEGER"
+            if magic == 'id':
+                default_type += " PRIMARY KEY AUTOINCREMENT"
+            if magic.endswith("_date"):
+                default_type = " TEXT"
+            columns_propertys[magic] = default_type
+        sql = ", ".join('%s %s'%(colm, attr) for colm, attr in columns_propertys.items())
+        sql = "({0})".format(sql)
+        sql = 'CREATE TABLE "%s" %s'%(self._table, sql)
+        self._cr.execute(sql)
 
     def _auto_init(self):
         create = self._table_exist()
@@ -153,5 +172,45 @@ class BaseModel(object):
         self.update_columns_model()
 
     def _create(self, vals):
-        pass
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        vals.update({"create_uid": self._uid, "create_date": "'%s'"%now})
+        query = """INSERT INTO "%s" (%s) VALUES(%s)""" % (
+            self._table,
+            ', '.join('"%s"' % u[0] for u in vals.items()),
+            ', '.join(str(u[1]) for u in vals.items()),
+            )
+        self._cr.execute(query)
+        self.id = self._cr.last_row_id
 
+    def create(self, values):
+        self._create(values)
+        return self
+
+    def _write(self, vals, model_id):
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        vals.update({"write_uid": self._uid, "write_date": "'%s'"%now})
+        query = 'UPDATE "%s" SET %s WHERE id = %s' % (
+                self._table, ','.join('"%s"=%s' % (u[0], u[1]) for u in vals.items()),
+                model_id)
+        self._cr.execute(query)
+
+    def write(self, values, model_id=False):
+        model_id = self.id or model_id
+        self._write(values, model_id)
+        return self
+
+    def _delete(self, model_ids):
+        if not isinstance(model_ids, list):
+            model_ids = [model_ids]
+        for sub_id in model_ids:
+            query = "DELETE FROM %s WHERE id = %s" %(self._table, sub_id)
+            self._cr.execute(query)
+
+    def delete(self, model_id=False):
+        model_id = model_id or self.active_id or self.id
+        self._delete(model_id)
+        return self
+
+    def search(self, domain, limit=None, order=None):
+        pass
+        

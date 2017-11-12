@@ -13,11 +13,13 @@ class Form(Gtk.Window):
 	grid = Gtk.Grid()
 	grid.set_row_spacing(3)
 	grid.set_column_spacing(3)
+	self.set_border_width(6)
         self.add(grid)
 	self.conten = grid
 	self.rows = 0
 	self.cols = 0
 	self.add_basic_buttons()
+	self.conten.set_column_homogeneous(True)
 
     def add_basic_buttons(self):
 	box = Gtk.Box(spacing=6)

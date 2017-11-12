@@ -21,6 +21,7 @@ class SqliteConnector(object):
     __dbname = None
     __cursor = None
     __conn = None
+    __id = None
 
     def __init__(self, dbname):
         self.__conn = sqlite3.connect(dbname)
@@ -40,12 +41,13 @@ class SqliteConnector(object):
         else:
             if change:
                 self.__conn.commit()
+                self.__id = self.__cursor.lastrowid
         return copy_list_dicts(self.__cursor) if not change else True
 
 
     def disconnect(self):
         if self.__conn:
-            logger.debug('disconnect: closing connection')
+            #~ logger.debug('disconnect: closing connection')
             self.__conn.close()
 
     def __del__(self):
@@ -55,5 +57,9 @@ class SqliteConnector(object):
         self.disconnect()
 
     def __enter__(self):
-        return self        
+        return self
+
+    @property
+    def last_row_id(self):
+        return self.__id
 
